@@ -1,0 +1,52 @@
+services:
+  athens:
+    build:
+      dockerfile: "docker/athens.Dockerfile"
+      context: "."
+    # You can find additional athens config options here: https://github.com/gomods/athens/blob/main/config.dev.toml
+    environment:
+      ATHENS_DISK_STORAGE_ROOT: "/var/lib/athens"
+      ATHENS_GONOSUM_PATTERNS: "github.com/private/*"
+      ATHENS_STORAGE_TYPE: "disk"
+      ATHENS_NETRC_PATH: "/root/.netrc"
+      GOROOT: "/usr/local/go"
+      PATH: "$GOROOT/bin:$PATH"
+    volumes:
+      - "./athens-storage:/var/lib/athens"
+      - "./.netrc:/root/.netrc"
+      - "./.gitconfig:/root/.gitconfig"
+      - "./ssh-keys:/root/.ssh"
+    ports:
+      - "3000:3000"
+  pkgsite:
+    depends_on:
+      - athens
+    build:
+      dockerfile: "docker/pkgsite.Dockerfile"
+      context: "."
+    command: "/entrypoint.sh http://athens:3000"
+    environment:
+      GOPROXY: "http://athens:3000"
+      GO_DISCOVERY_REDIS_HOST: "127.0.0.1"
+      GO_DISCOVERY_REDIS_PORT: "6379"
+    ports:
+      - "8888:8888"
+    volumes: 
+      - pkgsite:/data
+  server:
+    depends_on:
+      - pkgsite
+    container_name: server
+    build:
+      dockerfile: "docker/server.Dockerfile"
+      context: "."
+    environment:
+      GO_DOCS_ORIGIN: "http://pkgsite:8888"
+      GO_DOCS_REMOTE: "https://pkg.go.dev"
+    volumes:
+      - "./.netrc:/root/.netrc"
+    ports:
+      - "8080:8080"
+volumes:
+  pkgsite:
+    driver: local
