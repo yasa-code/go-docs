@@ -1,4 +1,4 @@
-module github.com/go-docs
+module github.com/yasa-code/go-docs
 
 go 1.21.5
 
